@@ -9,7 +9,7 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
-func (f *Finder) tryWellKnown(ctx context.Context, baseURL string) ([]FeedLink, error) {
+func (f *Finder) tryWellKnown(ctx context.Context, baseURL string) ([]Feed, error) {
 	wellKnown := []string{
 		"atom.xml",
 		"feed.xml",
@@ -22,7 +22,7 @@ func (f *Finder) tryWellKnown(ctx context.Context, baseURL string) ([]FeedLink, 
 		"feed/",
 		"rss/",
 	}
-	feeds := make([]FeedLink, 0)
+	feeds := make([]Feed, 0)
 
 	for _, suffix := range wellKnown {
 		newTarget, err := url.JoinPath(baseURL, suffix)
@@ -42,26 +42,26 @@ func (f *Finder) tryWellKnown(ctx context.Context, baseURL string) ([]FeedLink, 
 	return feeds, nil
 }
 
-func (f *Finder) parseRSSUrl(ctx context.Context, target string) (FeedLink, error) {
+func (f *Finder) parseRSSUrl(ctx context.Context, target string) (Feed, error) {
 	resp, err := f.httpClient.Get(target)
 	if err != nil {
-		return FeedLink{}, err
+		return Feed{}, err
 	}
 	defer resp.Body.Close()
 
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return FeedLink{}, err
+		return Feed{}, err
 	}
 	return parseRSSContent(content)
 }
 
-func parseRSSContent(content []byte) (FeedLink, error) {
+func parseRSSContent(content []byte) (Feed, error) {
 	parsed, err := gofeed.NewParser().Parse(bytes.NewReader(content))
 	if err != nil || parsed == nil {
-		return FeedLink{}, err
+		return Feed{}, err
 	}
-	return FeedLink{
+	return Feed{
 		// https://github.com/mmcdole/gofeed#default-mappings
 		Title: parsed.Title,
 

@@ -21,7 +21,7 @@ func TestFormatLinkToAbs(t *testing.T) {
 	}
 
 	for _, tt := range table {
-		res := formatLinkToAbs(tt.base, tt.link)
+		res := absURL(tt.base, tt.link)
 		assert.Equal(t, tt.want, res)
 	}
 }

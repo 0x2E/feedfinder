@@ -26,11 +26,7 @@ import (
 func main() {
 	link := "https://github.com/golang/go"
 
-	u, err := url.Parse(link)
-	if err != nil {
-		panic(err)
-	}
-	feeds, err := feedfinder.Find(context.Background(), u, feedfinder.Options{})
+	feeds, err := feedfinder.Find(context.Background(), link, nil)
 	if err != nil {
 		panic(err)
 	}

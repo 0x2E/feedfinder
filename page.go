@@ -11,7 +11,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func (f *Finder) tryPageSource(ctx context.Context) ([]FeedLink, error) {
+func (f *Finder) tryPageSource(ctx context.Context) ([]Feed, error) {
 	resp, err := f.httpClient.Get(f.target.String())
 	if err != nil {
 		return nil, err
@@ -28,32 +28,32 @@ func (f *Finder) tryPageSource(ctx context.Context) ([]FeedLink, error) {
 
 	feeds, err := f.parseHTMLContent(ctx, content)
 	if err != nil {
-		slog.Error(err.Error(), "content_type", "HTML")
+		slog.Debug("failed to parse HTML content", "error", err, "content_type", "HTML")
 	}
 	if len(feeds) != 0 {
 		for i := range feeds {
 			feed := &feeds[i]
-			feed.Link = formatLinkToAbs(f.target.String(), feed.Link)
+			feed.Link = absURL(f.target.String(), feed.Link)
 		}
 		return feeds, nil
 	}
 
 	feed, err := parseRSSContent(content)
 	if err != nil {
-		slog.Error(err.Error(), "content_type", "RSS")
+		slog.Debug("failed to parse RSS content", "error", err, "content_type", "RSS")
 	}
 	if !isEmptyFeedLink(feed) {
 		if feed.Link == "" {
 			feed.Link = f.target.String()
 		}
-		return []FeedLink{feed}, nil
+		return []Feed{feed}, nil
 	}
 
 	return nil, nil
 }
 
-func (f *Finder) parseHTMLContent(ctx context.Context, content []byte) ([]FeedLink, error) {
-	feeds := make([]FeedLink, 0)
+func (f *Finder) parseHTMLContent(ctx context.Context, content []byte) ([]Feed, error) {
+	feeds := make([]Feed, 0)
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
 	if err != nil {
@@ -71,7 +71,7 @@ func (f *Finder) parseHTMLContent(ctx context.Context, content []byte) ([]FeedLi
 	}
 	for _, expr := range linkExprs {
 		doc.Find("head").Find(expr).Each(func(_ int, s *goquery.Selection) {
-			feed := FeedLink{}
+			feed := Feed{}
 			feed.Title, _ = s.Attr("title")
 			feed.Link, _ = s.Attr("href")
 

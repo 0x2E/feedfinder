@@ -9,7 +9,7 @@ import (
 
 type testParseHTMLContentItem struct {
 	content []byte
-	want    []FeedLink
+	want    []Feed
 }
 
 func TestParseHTMLContentMatchLink(t *testing.T) {
@@ -25,7 +25,7 @@ func TestParseHTMLContentMatchLink(t *testing.T) {
 			<link type="application/feed+json" title="link in body" href="https://example.com/x/feed.json">
 		</body>
 		</html>
-		`), want: []FeedLink{
+		`), want: []Feed{
 			{Title: "feed title", Link: "https://example.com/x/rss.xml"},
 			{Title: "html title", Link: "https://example.com/x/atom.xml"},
 		}},
@@ -56,7 +56,7 @@ func TestParseHTMLContentMatchLinkElement(t *testing.T) {
 			</footer>
 		</body>
 		</html>
-		`), want: []FeedLink{
+		`), want: []Feed{
 			{Title: "Release notes from go", Link: "https://github.com/golang/go/releases.atom"},
 		}},
 	}

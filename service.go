@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-type serviceMatcher func(context.Context) ([]FeedLink, error)
+type serviceMatcher func(context.Context) ([]Feed, error)
 
-func (f *Finder) tryService(ctx context.Context) ([]FeedLink, error) {
+func (f *Finder) tryService(ctx context.Context) ([]Feed, error) {
 	matcher := []serviceMatcher{
 		f.githubMatcher,
 		f.redditMatcher,
@@ -28,13 +28,13 @@ func (f *Finder) tryService(ctx context.Context) ([]FeedLink, error) {
 	return nil, nil
 }
 
-var githubGlobalFeed = []FeedLink{
+var githubGlobalFeed = []Feed{
 	{Title: "global public timeline", Link: "https://github.com/timeline"},
 	{Title: "global security advisories", Link: "https://github.com/security-advisories.atom"},
 }
 
 // https://docs.github.com/en/rest/activity/feeds?apiVersion=2022-11-28#get-feeds
-func (s Finder) githubMatcher(ctx context.Context) ([]FeedLink, error) {
+func (s Finder) githubMatcher(ctx context.Context) ([]Feed, error) {
 	if !strings.HasSuffix(s.target.Hostname(), "github.com") {
 		return nil, nil
 	}
@@ -78,12 +78,12 @@ func (s Finder) githubMatcher(ctx context.Context) ([]FeedLink, error) {
 	return nil, nil
 }
 
-func genGitHubUserFeed(username string) []FeedLink {
-	return []FeedLink{{Title: username + " public timeline", Link: fmt.Sprintf("https://github.com/%s.atom", username)}}
+func genGitHubUserFeed(username string) []Feed {
+	return []Feed{{Title: username + " public timeline", Link: fmt.Sprintf("https://github.com/%s.atom", username)}}
 }
 
-func genGitHubRepoFeed(userRepo string) []FeedLink {
-	return []FeedLink{
+func genGitHubRepoFeed(userRepo string) []Feed {
+	return []Feed{
 		{Title: fmt.Sprintf("%s commits", userRepo), Link: fmt.Sprintf("https://github.com/%s/commits.atom", userRepo)},
 		{Title: fmt.Sprintf("%s releases", userRepo), Link: fmt.Sprintf("https://github.com/%s/releases.atom", userRepo)},
 		{Title: fmt.Sprintf("%s tags", userRepo), Link: fmt.Sprintf("https://github.com/%s/tags.atom", userRepo)},
@@ -91,12 +91,12 @@ func genGitHubRepoFeed(userRepo string) []FeedLink {
 	}
 }
 
-var redditGlobalFeed = []FeedLink{
+var redditGlobalFeed = []Feed{
 	{Title: "global", Link: "https://www.reddit.com/.rss"},
 }
 
 // https://www.reddit.com/wiki/rss/
-func (s Finder) redditMatcher(ctx context.Context) ([]FeedLink, error) {
+func (s Finder) redditMatcher(ctx context.Context) ([]Feed, error) {
 	if !strings.HasSuffix(s.target.Hostname(), "reddit.com") {
 		return nil, nil
 	}
@@ -126,8 +126,8 @@ func (s Finder) redditMatcher(ctx context.Context) ([]FeedLink, error) {
 	return nil, nil
 }
 
-func genRedditSubFeed(sub string) []FeedLink {
-	return []FeedLink{
+func genRedditSubFeed(sub string) []Feed {
+	return []Feed{
 		{Title: fmt.Sprintf("/r/%s hot", sub), Link: fmt.Sprintf("https://reddit.com/r/%s/hot/.rss", sub)},
 		{Title: fmt.Sprintf("/r/%s new", sub), Link: fmt.Sprintf("https://reddit.com/r/%s/new/.rss", sub)},
 		{Title: fmt.Sprintf("/r/%s top", sub), Link: fmt.Sprintf("https://reddit.com/r/%s/top/.rss", sub)},
@@ -135,12 +135,12 @@ func genRedditSubFeed(sub string) []FeedLink {
 	}
 }
 
-func genRedditCommentFeed(fullURL string) []FeedLink {
-	return []FeedLink{{Title: "post", Link: fullURL + ".rss"}}
+func genRedditCommentFeed(fullURL string) []Feed {
+	return []Feed{{Title: "post", Link: fullURL + ".rss"}}
 }
 
-func genRedditUserFeed(username string) []FeedLink {
-	return []FeedLink{
+func genRedditUserFeed(username string) []Feed {
+	return []Feed{
 		{Title: fmt.Sprintf("/u/%s overview new", username), Link: fmt.Sprintf("https://reddit.com/user/%s/.rss?sort=new", username)},
 		{Title: fmt.Sprintf("/u/%s overview hot", username), Link: fmt.Sprintf("https://reddit.com/user/%s/.rss?sort=hot", username)},
 		{Title: fmt.Sprintf("/u/%s overview top", username), Link: fmt.Sprintf("https://reddit.com/user/%s/.rss?sort=top", username)},
@@ -154,11 +154,11 @@ func genRedditUserFeed(username string) []FeedLink {
 	}
 }
 
-func genRedditDomainSubmissionFeed(domain string) []FeedLink {
-	return []FeedLink{{Title: "/domain/" + domain, Link: fmt.Sprintf("https://reddit.com/domain/%s/.rss", domain)}}
+func genRedditDomainSubmissionFeed(domain string) []Feed {
+	return []Feed{{Title: "/domain/" + domain, Link: fmt.Sprintf("https://reddit.com/domain/%s/.rss", domain)}}
 }
 
-func (s Finder) youtubeMatcher(ctx context.Context) ([]FeedLink, error) {
+func (s Finder) youtubeMatcher(ctx context.Context) ([]Feed, error) {
 	if !strings.HasSuffix(s.target.Hostname(), "youtube.com") && !strings.HasSuffix(s.target.Hostname(), "youtu.be") {
 		return nil, nil
 	}
@@ -185,13 +185,13 @@ func (s Finder) youtubeMatcher(ctx context.Context) ([]FeedLink, error) {
 		if id == "" {
 			return nil, nil
 		}
-		return []FeedLink{{Title: "Channel", Link: "https://www.youtube.com/feeds/videos.xml?channel_id=" + id}}, nil
+		return []Feed{{Title: "Channel", Link: "https://www.youtube.com/feeds/videos.xml?channel_id=" + id}}, nil
 	} else if strings.HasPrefix(s.target.Path, "/playlist") {
 		id := s.target.Query().Get("list")
 		if id == "" {
 			return nil, nil
 		}
-		return []FeedLink{{Title: "Playlist", Link: "https://www.youtube.com/feeds/videos.xml?playlist_id=" + id}}, nil
+		return []Feed{{Title: "Playlist", Link: "https://www.youtube.com/feeds/videos.xml?playlist_id=" + id}}, nil
 	}
 
 	return nil, nil

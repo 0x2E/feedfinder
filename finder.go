@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-type FeedLink struct {
+type Feed struct {
 	Title string `json:"title"`
 	Link  string `json:"link"`
 }
@@ -20,40 +20,47 @@ type Finder struct {
 }
 
 type Options struct {
-	ReqProxy *string
+	// ReqestProxy is the proxy url for HTTP client
+	ReqestProxy *string
 }
 
-func Find(ctx context.Context, target *url.URL, options Options) ([]FeedLink, error) {
+func Find(ctx context.Context, target string, options *Options) ([]Feed, error) {
+	u, err := url.Parse(target)
+	if err != nil {
+		return nil, err
+	}
+
 	clientTransportOps := []transportOptionFunc{}
-	if options.ReqProxy != nil && *options.ReqProxy != "" {
-		proxyURL, err := url.Parse(*options.ReqProxy)
-		if err != nil {
-			return nil, err
+	if options != nil {
+		if options.ReqestProxy != nil && *options.ReqestProxy != "" {
+			proxyURL, err := url.Parse(*options.ReqestProxy)
+			if err != nil {
+				return nil, err
+			}
+			clientTransportOps = append(clientTransportOps, func(transport *http.Transport) {
+				transport.Proxy = http.ProxyURL(proxyURL)
+			})
 		}
-		clientTransportOps = append(clientTransportOps, func(transport *http.Transport) {
-			transport.Proxy = http.ProxyURL(proxyURL)
-		})
 	}
 
 	finder := Finder{
-		target:     target,
+		target:     u,
 		httpClient: newClient(clientTransportOps...),
 	}
 	return finder.Run(context.Background())
 }
 
-func (f *Finder) Run(ctx context.Context) ([]FeedLink, error) {
+func (f *Finder) Run(ctx context.Context) ([]Feed, error) {
 	// find in third-party service
-	logger := slog.With("step", "third-party service")
 	fromService, err := f.tryService(ctx)
 	if err != nil {
-		logger.Error(err.Error())
+		return nil, err
 	}
 	if len(fromService) != 0 {
 		return fromService, nil
 	}
 
-	feedMap := make(map[string]FeedLink)
+	feedMap := make(map[string]Feed)
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
 
@@ -62,10 +69,9 @@ func (f *Finder) Run(ctx context.Context) ([]FeedLink, error) {
 		defer wg.Done()
 
 		// sniff in HTML
-		logger := slog.With("step", "page")
 		data, err := f.tryPageSource(ctx)
 		if err != nil {
-			logger.Error(err.Error())
+			slog.Debug("failed to sniff in HTML", "err", err)
 		}
 
 		mu.Lock()
@@ -80,16 +86,15 @@ func (f *Finder) Run(ctx context.Context) ([]FeedLink, error) {
 		defer wg.Done()
 
 		// sniff well-knowns under this url
-		logger := logger.With("step", "well-knowns")
 		data, err := f.tryWellKnown(ctx, fmt.Sprintf("%s://%s%s", f.target.Scheme, f.target.Host, f.target.Path))
 		if err != nil {
-			logger.Error(err.Error())
+			slog.Debug("failed to sniff well-knowns", "error", err)
 		}
 		if len(data) == 0 {
 			// sniff well-knowns under root path
 			data, err = f.tryWellKnown(ctx, fmt.Sprintf("%s://%s", f.target.Scheme, f.target.Host))
 			if err != nil {
-				logger.Error(err.Error())
+				slog.Debug("failed to sniff well-knowns under the root path", "error", err)
 			}
 		}
 
@@ -101,21 +106,22 @@ func (f *Finder) Run(ctx context.Context) ([]FeedLink, error) {
 	}()
 
 	wg.Wait()
-	res := make([]FeedLink, 0, len(feedMap))
+	res := make([]Feed, 0, len(feedMap))
 	for _, f := range feedMap {
 		res = append(res, f)
 	}
 	return res, nil
 }
 
-func isEmptyFeedLink(feed FeedLink) bool {
-	return feed == FeedLink{}
+func isEmptyFeedLink(feed Feed) bool {
+	return feed == Feed{}
 }
 
-func formatLinkToAbs(base, link string) string {
+func absURL(base, link string) string {
 	if link == "" {
 		return base
 	}
+
 	linkURL, err := url.Parse(link)
 	if err != nil {
 		return link

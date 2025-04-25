@@ -11,7 +11,7 @@ import (
 func TestGitHub(t *testing.T) {
 	type testItem struct {
 		url  *url.URL
-		want []FeedLink
+		want []Feed
 	}
 
 	urlBase, _ := url.Parse("https://github.com?xxx=1")
@@ -39,7 +39,7 @@ func TestGitHub(t *testing.T) {
 func TestReddit(t *testing.T) {
 	type testItem struct {
 		url  *url.URL
-		want []FeedLink
+		want []Feed
 	}
 
 	urlBase, _ := url.Parse("https://www.reddit.com")

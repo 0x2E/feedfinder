@@ -9,7 +9,7 @@ import (
 func TestParseRSSContent(t *testing.T) {
 	type testItem struct {
 		content []byte
-		want    FeedLink
+		want    Feed
 	}
 
 	// TODO: match all types, e.g. https://github.com/mmcdole/gofeed/tree/master/testdata
@@ -31,7 +31,7 @@ func TestParseRSSContent(t *testing.T) {
 			</item>  
 		  </channel> 
 		</rss>
-		`), want: FeedLink{Title: "test", Link: "https://example.com/feed.xml"}},
+		`), want: Feed{Title: "test", Link: "https://example.com/feed.xml"}},
 	}
 
 	for _, tt := range table {
