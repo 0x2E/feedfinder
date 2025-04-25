@@ -13,7 +13,38 @@ go get github.com/0x2E/feedfinder
 2. Import the package:
 
 ```go
+package main
 
+import (
+	"context"
+	"fmt"
+	"net/url"
+
+	"github.com/0x2E/feedfinder"
+)
+
+func main() {
+	link := "https://github.com/golang/go"
+
+	u, err := url.Parse(link)
+	if err != nil {
+		panic(err)
+	}
+	feeds, err := feedfinder.Find(context.Background(), u, feedfinder.Options{})
+	if err != nil {
+		panic(err)
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("title: %s\tlink: %s\n", feed.Title, feed.Link)
+	}
+}
+
+// Output:
+// title: golang/go commits        link: https://github.com/golang/go/commits.atom
+// title: golang/go releases       link: https://github.com/golang/go/releases.atom
+// title: golang/go tags   link: https://github.com/golang/go/tags.atom
+// title: golang/go wiki   link: https://github.com/golang/go/wiki.atom
 ```
 
 ## How it works
