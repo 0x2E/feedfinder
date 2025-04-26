@@ -20,8 +20,8 @@ type Finder struct {
 }
 
 type Options struct {
-	// ReqestProxy is the proxy url for HTTP client
-	ReqestProxy *string
+	// RequestProxy is the proxy url for HTTP client
+	RequestProxy *string
 }
 
 func Find(ctx context.Context, target string, options *Options) ([]Feed, error) {
@@ -32,8 +32,8 @@ func Find(ctx context.Context, target string, options *Options) ([]Feed, error) 
 
 	clientTransportOps := []transportOptionFunc{}
 	if options != nil {
-		if options.ReqestProxy != nil && *options.ReqestProxy != "" {
-			proxyURL, err := url.Parse(*options.ReqestProxy)
+		if options.RequestProxy != nil && *options.RequestProxy != "" {
+			proxyURL, err := url.Parse(*options.RequestProxy)
 			if err != nil {
 				return nil, err
 			}

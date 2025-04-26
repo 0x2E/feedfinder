@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/0x2E/feedfinder"
 )
