@@ -21,7 +21,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Verify tag is on main
-        run: git merge-base --is-ancestor ${{ github.sha }} origin/main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor ${{ github.sha }} origin/main
       - name: Create draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
