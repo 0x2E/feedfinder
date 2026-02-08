@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"regexp"
 	"strings"
 )
@@ -27,6 +28,12 @@ func (f *Finder) tryService(ctx context.Context) ([]Feed, error) {
 	}
 	return nil, nil
 }
+
+var (
+	reGitHubRepo      = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-_\.]{0,98}[a-zA-Z0-9]$`)
+	reGitHubUser      = regexp.MustCompile(`^[a-zA-Z0-9][-]?[a-zA-Z0-9]{0,38}$`)
+	reYouTubeBrowseID = regexp.MustCompile(`{"key":"browse_id","value":"(.+?)"}`) // extracts channel ID from page source
+)
 
 var githubGlobalFeed = []Feed{
 	{Title: "global public timeline", Link: "https://github.com/timeline"},
@@ -54,22 +61,14 @@ func (s Finder) githubMatcher(ctx context.Context) ([]Feed, error) {
 	}
 
 	if reponame != "" {
-		re, err := regexp.Compile(`^[a-zA-Z0-9][a-zA-Z0-9-_\.]{0,98}[a-zA-Z0-9]$`) // todo need improve
-		if err != nil {
-			return nil, err
-		}
-		if !re.MatchString(reponame) {
+		if !reGitHubRepo.MatchString(reponame) {
 			return nil, nil
 		}
 		return genGitHubRepoFeed(username + "/" + reponame), nil
 	}
 
 	if username != "" {
-		re, err := regexp.Compile(`^[a-zA-Z0-9][-]?[a-zA-Z0-9]{0,38}$`)
-		if err != nil {
-			return nil, err
-		}
-		if !re.MatchString(username) {
+		if !reGitHubUser.MatchString(username) {
 			return nil, nil
 		}
 		return genGitHubUserFeed(username), nil
@@ -101,9 +100,9 @@ func (s Finder) redditMatcher(ctx context.Context) ([]Feed, error) {
 		return nil, nil
 	}
 
-	splited := strings.SplitN(s.target.Path, "/", 4)
+	splited := strings.SplitN(s.target.Path, "/", 4) // e.g. "/r/golang/" -> ["", "r", "golang", ""]
 	splitedLen := len(splited)
-	if splitedLen < 2 {
+	if splitedLen < 3 { // need at least ["", mode, param] to form a valid sub-path
 		return redditGlobalFeed, nil
 	}
 
@@ -163,7 +162,25 @@ func (s Finder) youtubeMatcher(ctx context.Context) ([]Feed, error) {
 		return nil, nil
 	}
 
-	resp, err := s.httpClient.Get(s.target.String())
+	// Playlist ID can be extracted from URL query params without fetching the page.
+	if strings.HasPrefix(s.target.Path, "/playlist") {
+		id := s.target.Query().Get("list")
+		if id == "" {
+			return nil, nil
+		}
+		return []Feed{{Title: "Playlist", Link: "https://www.youtube.com/feeds/videos.xml?playlist_id=" + id}}, nil
+	}
+
+	// Channel pages (/@handle) require fetching page source to extract the browse_id.
+	if !strings.HasPrefix(s.target.Path, "/@") {
+		return nil, nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.target.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -172,27 +189,13 @@ func (s Finder) youtubeMatcher(ctx context.Context) ([]Feed, error) {
 	if err != nil {
 		return nil, err
 	}
-	if strings.HasPrefix(s.target.Path, "/@") {
-		re, err := regexp.Compile(`{"key":"browse_id","value":"(.+?)"}`)
-		if err != nil {
-			return nil, err
-		}
-		match := re.FindStringSubmatch(string(content))
-		if len(match) < 2 {
-			return nil, nil
-		}
-		id := match[1]
-		if id == "" {
-			return nil, nil
-		}
-		return []Feed{{Title: "Channel", Link: "https://www.youtube.com/feeds/videos.xml?channel_id=" + id}}, nil
-	} else if strings.HasPrefix(s.target.Path, "/playlist") {
-		id := s.target.Query().Get("list")
-		if id == "" {
-			return nil, nil
-		}
-		return []Feed{{Title: "Playlist", Link: "https://www.youtube.com/feeds/videos.xml?playlist_id=" + id}}, nil
+	match := reYouTubeBrowseID.FindStringSubmatch(string(content))
+	if len(match) < 2 {
+		return nil, nil
 	}
-
-	return nil, nil
+	id := match[1]
+	if id == "" {
+		return nil, nil
+	}
+	return []Feed{{Title: "Channel", Link: "https://www.youtube.com/feeds/videos.xml?channel_id=" + id}}, nil
 }

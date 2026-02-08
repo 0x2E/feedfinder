@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"net/url"
 
 	"github.com/mmcdole/gofeed"
@@ -33,7 +34,7 @@ func (f *Finder) tryWellKnown(ctx context.Context, baseURL string) ([]Feed, erro
 		if err != nil {
 			continue
 		}
-		if !isEmptyFeedLink(feed) {
+		if !isEmptyFeed(feed) {
 			feed.Link = newTarget // this may be more accurate than the link parsed from the rss content
 			feeds = append(feeds, feed)
 		}
@@ -43,7 +44,11 @@ func (f *Finder) tryWellKnown(ctx context.Context, baseURL string) ([]Feed, erro
 }
 
 func (f *Finder) parseRSSUrl(ctx context.Context, target string) (Feed, error) {
-	resp, err := f.httpClient.Get(target)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return Feed{}, err
+	}
+	resp, err := f.httpClient.Do(req)
 	if err != nil {
 		return Feed{}, err
 	}

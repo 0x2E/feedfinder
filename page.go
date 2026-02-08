@@ -7,12 +7,17 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 func (f *Finder) tryPageSource(ctx context.Context) ([]Feed, error) {
-	resp, err := f.httpClient.Get(f.target.String())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.target.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := f.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +47,7 @@ func (f *Finder) tryPageSource(ctx context.Context) ([]Feed, error) {
 	if err != nil {
 		slog.Debug("failed to parse RSS content", "error", err, "content_type", "RSS")
 	}
-	if !isEmptyFeedLink(feed) {
+	if !isEmptyFeed(feed) {
 		if feed.Link == "" {
 			feed.Link = f.target.String()
 		}
@@ -82,10 +87,12 @@ func (f *Finder) parseHTMLContent(ctx context.Context, content []byte) ([]Feed, 
 		})
 	}
 
-	// find <a> type rss in <body>
-	aExpr := "a:contains('rss')"
+	// find <a> containing "rss" (case-insensitive) in <body>
 	suspected := make(map[string]struct{})
-	doc.Find("body").Find(aExpr).Each(func(_ int, s *goquery.Selection) {
+	doc.Find("body").Find("a").Each(func(_ int, s *goquery.Selection) {
+		if !strings.Contains(strings.ToLower(s.Text()), "rss") {
+			return
+		}
 		link, exists := s.Attr("href")
 		if !exists {
 			return
@@ -97,7 +104,7 @@ func (f *Finder) parseHTMLContent(ctx context.Context, content []byte) ([]Feed, 
 		if err != nil {
 			continue
 		}
-		if !isEmptyFeedLink(feed) {
+		if !isEmptyFeed(feed) {
 			feed.Link = link // this may be more accurate than the link parsed from the rss content
 			feeds = append(feeds, feed)
 		}

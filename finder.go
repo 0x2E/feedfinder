@@ -47,7 +47,7 @@ func Find(ctx context.Context, target string, options *Options) ([]Feed, error) 
 		target:     u,
 		httpClient: newClient(clientTransportOps...),
 	}
-	return finder.Run(context.Background())
+	return finder.Run(ctx)
 }
 
 func (f *Finder) Run(ctx context.Context) ([]Feed, error) {
@@ -113,7 +113,8 @@ func (f *Finder) Run(ctx context.Context) ([]Feed, error) {
 	return res, nil
 }
 
-func isEmptyFeedLink(feed Feed) bool {
+// isEmptyFeed reports whether both Title and Link are zero values.
+func isEmptyFeed(feed Feed) bool {
 	return feed == Feed{}
 }
 
