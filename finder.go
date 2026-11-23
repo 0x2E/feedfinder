@@ -2,6 +2,7 @@ package feedfinder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -20,8 +21,15 @@ type Finder struct {
 }
 
 type Options struct {
-	// RequestProxy is the proxy url for HTTP client
+	// RequestProxy is the proxy url for the default HTTP client.
+	// It must be empty when HTTPClient is set.
 	RequestProxy *string
+
+	// HTTPClient is used for all outbound requests made by Find, including
+	// redirects and URLs discovered while probing. It is used as is, so its
+	// Timeout and CheckRedirect apply. When set, RequestProxy must be empty
+	// because the proxy belongs on the client.
+	HTTPClient *http.Client
 }
 
 func Find(ctx context.Context, target string, options *Options) ([]Feed, error) {
@@ -30,9 +38,16 @@ func Find(ctx context.Context, target string, options *Options) ([]Feed, error) 
 		return nil, err
 	}
 
+	var httpClient *http.Client
 	clientTransportOps := []transportOptionFunc{}
 	if options != nil {
-		if options.RequestProxy != nil && *options.RequestProxy != "" {
+		useProxy := options.RequestProxy != nil && *options.RequestProxy != ""
+		if options.HTTPClient != nil {
+			if useProxy {
+				return nil, errors.New("HTTPClient and RequestProxy cannot both be set")
+			}
+			httpClient = options.HTTPClient
+		} else if useProxy {
 			proxyURL, err := url.Parse(*options.RequestProxy)
 			if err != nil {
 				return nil, err
@@ -42,10 +57,13 @@ func Find(ctx context.Context, target string, options *Options) ([]Feed, error) 
 			})
 		}
 	}
+	if httpClient == nil {
+		httpClient = newClient(clientTransportOps...)
+	}
 
 	finder := Finder{
 		target:     u,
-		httpClient: newClient(clientTransportOps...),
+		httpClient: httpClient,
 	}
 	return finder.Run(ctx)
 }
